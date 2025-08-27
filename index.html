@@ -3,14 +3,15 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Sheets → Dashboard (No API)</title>
+  <title>Sheets → Dashboard (Auto CSV)</title>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <style>
     :root { --bg:#0b1020; --text:#e9ecf5; --muted:#a9b0c7; --accent:#7c9cf5; }
-    *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,Arial;background:var(--bg);color:var(--text)}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,system-ui,Arial;background:var(--bg);color:var(--text)}
     .wrap{max-width:1100px;margin:32px auto;padding:0 16px}
     .card{background:#111733;border:1px solid #1e2a55;border-radius:16px;padding:16px 16px 20px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
     .row{display:flex;gap:12px;flex-wrap:wrap}
@@ -22,11 +23,12 @@
     .muted{color:var(--muted);font-size:13px}
     canvas{width:100%;height:420px}
     .pill{display:inline-block;padding:6px 10px;border:1px solid #273464;border-radius:999px;font-size:12px;color:var(--muted)}
+    .small{font-size:12px}
   </style>
 </head>
 <body>
   <div class="wrap">
-    <h1>Google Sheets → Dashboard <span class="pill">no API key</span></h1>
+    <h1>Google Sheets → Dashboard <span class="pill">auto CSV</span></h1>
     <div class="card" style="margin-bottom:16px">
       <div class="row">
         <div>
@@ -46,8 +48,9 @@
         </div>
       </div>
       <p class="muted" style="margin-top:8px">
-        ทิป: ใช้คอลัมน์แรกเป็นวันที่/ชื่อหมวด และเลือก 1–3 คอลัมน์ตัวเลขเป็นค่าแสดงผล
+        หน้านี้ตั้งค่าเริ่มต้นเป็นชีตของคุณไว้แล้ว — เปิดมาก็โหลดข้อมูลให้อัตโนมัติ ถ้าอยากสลับเป็นชีตอื่น ให้เปลี่ยน URL แล้วกดปุ่ม
       </p>
+      <p class="muted small">ทิป: ใช้คอลัมน์แรกเป็นวันที่/ชื่อหมวด และเลือก 1–3 คอลัมน์ตัวเลขเป็นค่าแสดงผล</p>
     </div>
 
     <div class="card">
@@ -67,8 +70,8 @@
     let rawData = [], headers = [];
     let chart;
 
+    // === Utilities ===
     function autoDetectNumericColumns(data, hdrs){
-      // หา column ที่เป็นตัวเลขล้วนอย่างน้อย 70% ของแถว
       const numericIdx = [];
       for(let c=0;c<hdrs.length;c++){
         let n=0, tot=0;
@@ -95,17 +98,17 @@
         o2.value = i; o2.textContent = h; els.ySelect.appendChild(o2);
       });
 
-      // เดาฟิลด์เริ่มต้น: X=คอลัมน์แรก, Y=คอลัมน์ตัวเลข
-      els.xSelect.value = 0;
+      els.xSelect.value = 0; // default X = column 0
       const numericIdx = autoDetectNumericColumns(rawData, headers);
       for(const i of numericIdx.slice(0,3)) {
-        [...els.ySelect.options].find(o => +o.value===i).selected = true;
+        const opt = [...els.ySelect.options].find(o => +o.value===i);
+        if (opt) opt.selected = true;
       }
     }
 
     function toDatasets(xIdx, yIdxs) {
       const labels = rawData.map(r => r[xIdx]);
-      const datasets = yIdxs.map((idx, k) => ({
+      const datasets = yIdxs.map((idx) => ({
         label: headers[idx],
         data: rawData.map(r => {
           const v = parseFloat(r[idx]);
@@ -114,7 +117,6 @@
         tension: 0.25,
         pointRadius: 2,
         borderWidth: 2,
-        // ไม่กำหนดสีเฉพาะ ปล่อยให้ Chart.js หมุนพาเลตอัตโนมัติ
       }));
       return {labels, datasets};
     }
@@ -177,15 +179,16 @@
       renderChart(cfg);
     });
 
-    // ถ้าผู้ใช้วาง URL แล้วกด Enter → โหลดทันที
-    els.csvUrl.addEventListener('keydown', (e) => { if(e.key==='Enter') run(); });
+    // === Auto-load: embed your sheet's CSV here ===
+    const DEFAULT_CSV = "https://docs.google.com/spreadsheets/d/18FhtYVbg5ZwFJXn0oJhb69Lxm8HiAdCs_rboRsJnoP4/export?format=csv&gid=0";
 
-    // ลองอ่านค่า URL จาก hash (?csv=...) เพื่อแชร์ลิงก์ตั้งค่าไว้ล่วงหน้าได้
+    // Allow override via ?csv=...
     const params = new URLSearchParams(location.search);
-    if (params.get('csv')) {
-      els.csvUrl.value = decodeURIComponent(params.get('csv'));
-      run();
-    }
+    const csvFromParam = params.get('csv');
+    els.csvUrl.value = csvFromParam ? decodeURIComponent(csvFromParam) : DEFAULT_CSV;
+
+    // Auto-run on first paint
+    window.addEventListener('DOMContentLoaded', run);
   </script>
 </body>
 </html>
