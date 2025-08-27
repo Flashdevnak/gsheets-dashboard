@@ -3,289 +3,189 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Elegant Google Sheets Dashboard — Auto Connect (Matched to Your Sheet)</title>
+  <title>Sheets → Dashboard (No API)</title>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    :root{ --bg:#0b1020; --muted:#A9B0C7; --text:#e9ecf5; --primary:#7C9CF5; --ring: rgba(124,156,245,.35); }
-    *{box-sizing:border-box} html,body{height:100%}
-    body{font-family:Inter,system-ui,Segoe UI,Roboto,Arial; margin:0; background:radial-gradient(1200px 800px at 10% -10%, #1a2250 0%, transparent 40%),radial-gradient(1000px 700px at 110% 10%, #18315a 0%, transparent 40%), #0b1020; color:var(--text)}
-    header{display:flex;align-items:center;gap:12px; padding:22px 28px; position:sticky; top:0; backdrop-filter:blur(8px); background:linear-gradient(180deg, rgba(11,16,32,.85), rgba(11,16,32,.55) 60%, transparent); z-index:5}
-    .wrap{max-width:1200px; margin:0 auto; padding:16px 20px 60px}
-    .card{background:linear-gradient(180deg, rgba(17,22,50,.85), rgba(17,22,50,.75)); border:1px solid rgba(255,255,255,.06); border-radius:18px; box-shadow:0 10px 40px rgba(0,0,0,.35); padding:16px; margin:12px 0}
-    .row{display:grid; grid-template-columns:repeat(12,1fr); gap:12px}
-    .col-3{grid-column:span 3} .col-4{grid-column:span 4} .col-6{grid-column:span 6} .col-12{grid-column:span 12}
-    @media(max-width:980px){.col-3,.col-4,.col-6{grid-column:span 12}}
-    label{font-size:12px; color:var(--muted); display:block; margin:4px 0}
-    select,input,button{width:100%; padding:10px 12px; border-radius:12px; border:1px solid rgba(255,255,255,.08); background:#0d132a; color:var(--text)}
-    select:focus,input:focus{box-shadow:0 0 0 3px var(--ring)}
-    button{background:linear-gradient(135deg, var(--primary), #5B7BF2); border:none; font-weight:600; cursor:pointer}
-    .ghost{background:#0d132a; border:1px solid rgba(255,255,255,.12)}
-    .kpis{display:grid; grid-template-columns:repeat(4,1fr); gap:12px}
-    .kpi{padding:16px; border-radius:16px; background:linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,.00)); border:1px solid rgba(255,255,255,.06)}
-    .kpi .l{font-size:12px; color:var(--muted)} .kpi .v{font-size:24px; font-weight:700; margin-top:6px}
-    .tabs{display:flex; gap:8px; flex-wrap:wrap}
-    .tab-btn{padding:8px 12px; border-radius:12px; border:1px solid rgba(255,255,255,.08); background:#0d132a; color:var(--text); cursor:pointer}
-    .tab-btn.active{background:linear-gradient(135deg,#2c3c84,#1c255a)}
-    .tab{display:none} .tab.active{display:block}
-    .table-wrap{overflow:auto; max-height:420px}
-    table{width:100%; border-collapse:separate; border-spacing:0}
-    th,td{padding:10px 12px; border-bottom:1px solid rgba(255,255,255,.06); font-size:13px}
-    th{position:sticky; top:0; background:#0f1533; z-index:1; text-align:left}
-    .right{text-align:right}
-    .chip{display:inline-flex; align-items:center; gap:8px; padding:6px 10px; border-radius:999px; font-size:12px; background:rgba(124,156,245,.15); color:#cfe0ff; border:1px solid rgba(124,156,245,.3)}
-  </style>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root { --bg:#0b1020; --text:#e9ecf5; --muted:#a9b0c7; --accent:#7c9cf5; }
+    *{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,Arial;background:var(--bg);color:var(--text)}
+    .wrap{max-width:1100px;margin:32px auto;padding:0 16px}
+    .card{background:#111733;border:1px solid #1e2a55;border-radius:16px;padding:16px 16px 20px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+    .row{display:flex;gap:12px;flex-wrap:wrap}
+    .row>*{flex:1 1 240px}
+    label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
+    input,select,button{width:100%;padding:12px 12px;border-radius:10px;border:1px solid #273464;background:#0f1530;color:var(--text)}
+    button{cursor:pointer;background:linear-gradient(180deg,#2a3ea6,#1e2a7a);border:none}
+    h1{font-size:22px;margin:0 0 14px}
+    .muted{color:var(--muted);font-size:13px}
+    canvas{width:100%;height:420px}
+    .pill{display:inline-block;padding:6px 10px;border:1px solid #273464;border-radius:999px;font-size:12px;color:var(--muted)}
+  </style>
 </head>
 <body>
-  <header>
-    <h2 style="margin:0">Elegant Google Sheets Dashboard — Auto Connect</h2>
-    <span class="chip" id="status">Loading…</span>
-  </header>
   <div class="wrap">
-
-    <!-- Filters -->
-    <div class="card">
+    <h1>Google Sheets → Dashboard <span class="pill">no API key</span></h1>
+    <div class="card" style="margin-bottom:16px">
       <div class="row">
-        <div class="col-3"><label>วันที่เริ่ม</label><input type="date" id="startDate"></div>
-        <div class="col-3"><label>วันที่สิ้นสุด</label><input type="date" id="endDate"></div>
-        <div class="col-3"><label>ประเภทข้อมูล (แหล่ง)</label><select id="sourceSel"></select></div>
-        <div class="col-3"><label>สาขา</label><select id="branchSel"></select></div>
-        <div class="col-3"><label>สินค้า/แพ็กเกจ</label><select id="productSel"></select></div>
-        <div class="col-3" id="teamFilter"><label>ทีม</label><select id="teamSel"></select></div>
-        <div class="col-3"><label>Top N (อันดับ)</label><input id="topN" type="number" min="1" value="10"></div>
-        <div class="col-3"><label>&nbsp;</label><button id="exportBtn" class="ghost">Export กรองแล้ว (CSV)</button></div>
+        <div>
+          <label>CSV URL (export?format=csv&gid=...)</label>
+          <input id="csvUrl" placeholder="วางลิงก์ CSV ของ Google Sheet ที่เผยแพร่แล้ว">
+        </div>
+        <div>
+          <label>คอลัมน์แกน X (ป้ายกำกับ)</label>
+          <select id="xSelect"></select>
+        </div>
+        <div>
+          <label>คอลัมน์ค่า (แกน Y)</label>
+          <select id="ySelect" multiple size="4"></select>
+        </div>
+        <div style="align-self:flex-end">
+          <button id="loadBtn">โหลดข้อมูล & อัปเดตกราฟ</button>
+        </div>
       </div>
+      <p class="muted" style="margin-top:8px">
+        ทิป: ใช้คอลัมน์แรกเป็นวันที่/ชื่อหมวด และเลือก 1–3 คอลัมน์ตัวเลขเป็นค่าแสดงผล
+      </p>
     </div>
 
-    <!-- KPIs -->
-    <div class="kpis">
-      <div class="kpi"><div class="l">รวม (ตามตัวกรอง)</div><div class="v" id="kpiTotal">-</div></div>
-      <div class="kpi"><div class="l">จำนวนรายการ</div><div class="v" id="kpiCount">-</div></div>
-      <div class="kpi"><div class="l">เดือนปัจจุบัน</div><div class="v" id="kpiMonth">-</div></div>
-      <div class="kpi"><div class="l">MoM Change</div><div class="v" id="kpiMoM">-</div></div>
-    </div>
-
-    <!-- Tabs & Charts -->
     <div class="card">
-      <div class="tabs" id="tabs"></div>
-      <div class="tab active" data-tab="trend"><canvas id="trendChart" height="280"></canvas></div>
-      <div class="tab" data-tab="branch"><canvas id="branchChart" height="300"></canvas></div>
-      <div class="tab" data-tab="product"><canvas id="productChart" height="300"></canvas></div>
-      <div class="tab" data-tab="team"><canvas id="teamChart" height="300"></canvas></div>
-      <div class="tab" data-tab="donut"><canvas id="donutChart" height="300"></canvas></div>
-      <div class="tab" data-tab="table"><div class="table-wrap"><table id="dataTable"><thead></thead><tbody></tbody></table></div></div>
+      <canvas id="chart"></canvas>
     </div>
-
-    <div class="card" style="font-size:12px;color:#cbd3ea">
-      เชื่อมต่อด้วย <b>Sheet ID</b> และชื่อแผ่นงานที่ตรงกับไฟล์จริง: <b>Lost</b>, <b>Damaged</b> — ถ้าไม่เห็นข้อมูล โปรดตรวจ: ไฟล์ → แชร์ → เผยแพร่ไปยังเว็บ
-    </div>
-
   </div>
 
-<script>
-Chart.register(ChartDataLabels);
-const $ = (id)=>document.getElementById(id);
-const fmt = (n)=> (isNaN(n)?'-': Number(n).toLocaleString());
-const toISO = (d)=> d.toISOString().slice(0,10);
-function parseDateFlexible(s){
-  if(!s) return null;
-  if(/^\d{4}-\d{2}-\d{2}/.test(s)) return new Date(s);
-  const m=String(s).match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/); // dd/mm/yyyy
-  if(m){const d=+m[1],mo=+m[2]-1,y=(m[3].length===2?+('20'+m[3]):+m[3]); return new Date(y,mo,d);} 
-  const m2=String(s).match(/^(\d{1,2})-(\d{1,2})-(\d{2,4})/); // dd-mm-yyyy
-  if(m2){const d=+m2[1],mo=+m2[2]-1,y=(m2[3].length===2?+('20'+m2[3]):+m2[3]); return new Date(y,mo,d);} 
-  const d2=new Date(s); return isNaN(d2)?null:d2;
-}
-function unique(a){ return Array.from(new Set(a.filter(Boolean))).sort(); }
-function groupSum(rows, keyFn, valFn){ const mp=new Map(); for(const r of rows){ const k=keyFn(r); if(k==null) continue; mp.set(k,(mp.get(k)||0)+(valFn(r)||0)); } return Array.from(mp.entries()); }
+  <script>
+    const els = {
+      csvUrl: document.getElementById('csvUrl'),
+      xSelect: document.getElementById('xSelect'),
+      ySelect: document.getElementById('ySelect'),
+      loadBtn: document.getElementById('loadBtn'),
+      canvas: document.getElementById('chart')
+    };
 
-// ====== AUTO CONFIG (YOUR SHEET) ======
-const SHEET_ID = '18FhtYVbg5ZwFJXn0oJhb69Lxm8HiAdCs_rboRsJnoP4';
-const SHEETS = ['Lost','Damaged']; // ให้ตรงแท็บจริง
+    let rawData = [], headers = [];
+    let chart;
 
-// ล็อกหัวคอลัมน์ให้ตรงชีตจริง แล้วค่อย fallback
-function detectCols(headers){
-  const h = headers.map(x=> String(x||'').trim());
-  const has = (name)=> h.includes(name);
-  const locked = {
-    date:   has('วันที่ร้องเรียน') ? 'วันที่ร้องเรียน'
-          : (has('วัน/เวลาที่โดนตัดสิน') ? 'วัน/เวลาที่โดนตัดสิน' : null),
-    value:  has('ค่าน้ำหนัก') ? 'ค่าน้ำหนัก' : (has('Responsible_Weight') ? 'Responsible_Weight' : null),
-    branch: has('สาขารับผิดชอบ') ? 'สาขารับผิดชอบ'
-          : (has('Responsible network') ? 'Responsible network' : null),
-    product:has('Package') ? 'Package' : null,
-    team:   null, // ไม่มีในไฟล์จริง
-    order:  has('เลขพัสดุ') ? 'เลขพัสดุ'
-          : (has('Express Order №') ? 'Express Order №' : (has('Express Order No') ? 'Express Order No' : null)),
-  };
-  const find = (cands)=> h.find(x=> cands.some(c=> x.toLowerCase().includes(c))) || null;
-  return {
-    date:   locked.date   || find(['วันที่ร้องเรียน','วัน/เวลาที่โดนตัดสิน','process time','วันที่','date','申诉']),
-    value:  locked.value  || find(['ค่าน้ำหนัก','responsible_weight','weight','จำนวน','amount','value','qty']),
-    branch: locked.branch || find(['สาขารับผิดชอบ','responsible network','รับผิดชอบ','branch','responsible','network']),
-    product:locked.product|| find(['package','สินค้า','product']),
-    team:   locked.team   || null,
-    order:  locked.order  || find(['เลขพัสดุ','express order','order','tracking','เลข']),
-  };
-}
-
-async function fetchSheetCSV(sheetName){
-  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}&cachebust=${Date.now()}`;
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(`โหลดชีต "${sheetName}" ไม่สำเร็จ (HTTP ${res.status}).\nตรวจว่าได้เผยแพร่ไปยังเว็บ และชื่อชีตตรงกับ: ${SHEETS.join(', ')}`);
-  }
-  const text = await res.text();
-  const parsed = Papa.parse(text, {header:true});
-  return parsed.data;
-}
-
-let RAW=[], charts={};
-const TABS=[
-  {id:'trend', label:'📈 แนวโน้มรายวัน'},
-  {id:'branch', label:'🏢 ตามสาขา'},
-  {id:'product', label:'📦 ตามสินค้า/แพ็กเกจ'},
-  {id:'team', label:'👥 ตามทีม'},
-  {id:'donut', label:'🟢 สัดส่วน (Donut)'},
-  {id:'table', label:'🧾 ตาราง'},
-];
-
-(function initTabs(){
-  const wrap=$('tabs');
-  TABS.forEach(t=>{ const b=document.createElement('button'); b.className='tab-btn'+(t.id==='trend'?' active':''); b.dataset.tab=t.id; b.textContent=t.label; wrap.appendChild(b); });
-  wrap.addEventListener('click', e=>{ const b=e.target.closest('.tab-btn'); if(!b) return; document.querySelectorAll('.tab-btn').forEach(x=>x.classList.remove('active')); b.classList.add('active'); const id=b.dataset.tab; document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active')); document.querySelector(`.tab[data-tab="${id}"]`).classList.add('active'); });
-})();
-
-(async function bootstrap(){
-  try{
-    $('status').textContent='Connecting…';
-    const allRows = [];
-    for(const name of SHEETS){
-      const rows = await fetchSheetCSV(name);
-      if(!rows || !rows.length) continue;
-      const headers = Object.keys(rows[0]||{});
-      const m = detectCols(headers);
-      for(const r of rows){
-        const d = parseDateFlexible(r[m.date]);
-        if(!d) continue;
-        let v = 1;
-        if(m.value && r[m.value]!==undefined && r[m.value]!==null && r[m.value]!==""){
-          const n = Number(String(r[m.value]).replace(/[^0-9.-]/g,'')); v = isNaN(n)?0:n;
+    function autoDetectNumericColumns(data, hdrs){
+      // หา column ที่เป็นตัวเลขล้วนอย่างน้อย 70% ของแถว
+      const numericIdx = [];
+      for(let c=0;c<hdrs.length;c++){
+        let n=0, tot=0;
+        for(let r=0;r<Math.min(data.length, 200); r++){
+          const v = data[r][c];
+          if (v !== null && v !== undefined && v !== '') {
+            tot++;
+            if (!isNaN(parseFloat(v))) n++;
+          }
         }
-        allRows.push({
-          Source: name,
-          Date: toISO(d),
-          Order: m.order? (r[m.order]||'') : '',
-          Branch: m.branch? (r[m.branch]||'') : '',
-          Product: m.product? (r[m.product]||'') : '',
-          Team: m.team? (r[m.team]||'') : '',
-          Value: v,
-        });
+        if (tot>0 && n/tot >= 0.7) numericIdx.push(c);
+      }
+      return numericIdx;
+    }
+
+    function populateSelectors(){
+      els.xSelect.innerHTML = '';
+      els.ySelect.innerHTML = '';
+      headers.forEach((h, i) => {
+        const o1 = document.createElement('option');
+        o1.value = i; o1.textContent = h; els.xSelect.appendChild(o1);
+
+        const o2 = document.createElement('option');
+        o2.value = i; o2.textContent = h; els.ySelect.appendChild(o2);
+      });
+
+      // เดาฟิลด์เริ่มต้น: X=คอลัมน์แรก, Y=คอลัมน์ตัวเลข
+      els.xSelect.value = 0;
+      const numericIdx = autoDetectNumericColumns(rawData, headers);
+      for(const i of numericIdx.slice(0,3)) {
+        [...els.ySelect.options].find(o => +o.value===i).selected = true;
       }
     }
 
-    RAW = allRows;
-    if(!RAW.length) {
-      throw new Error('ไม่พบข้อมูลในชีต Lost / Damaged\n• ตรวจว่าเผยแพร่ไปยังเว็บแล้ว (ไฟล์ → แชร์ → เผยแพร่ไปยังเว็บ)\n• ตรวจสะกดชื่อแผ่นงาน Lost, Damaged ให้ตรงตัวพิมพ์\n• ตรวจว่ามีคอลัมน์วันที่/ข้อมูลจริง');
+    function toDatasets(xIdx, yIdxs) {
+      const labels = rawData.map(r => r[xIdx]);
+      const datasets = yIdxs.map((idx, k) => ({
+        label: headers[idx],
+        data: rawData.map(r => {
+          const v = parseFloat(r[idx]);
+          return isNaN(v) ? null : v;
+        }),
+        tension: 0.25,
+        pointRadius: 2,
+        borderWidth: 2,
+        // ไม่กำหนดสีเฉพาะ ปล่อยให้ Chart.js หมุนพาเลตอัตโนมัติ
+      }));
+      return {labels, datasets};
     }
 
-    // Build filters
-    fillSelect('sourceSel', ['(ทั้งหมด)'].concat(unique(RAW.map(r=>r.Source))));
-    fillSelect('branchSel', ['(ทั้งหมด)'].concat(unique(RAW.map(r=>r.Branch))));
-    fillSelect('productSel', ['(ทั้งหมด)'].concat(unique(RAW.map(r=>r.Product))));
-    fillSelect('teamSel', ['(ทั้งหมด)'].concat(unique(RAW.map(r=>r.Team))));
-
-    // Hide team filter if empty (no team column)
-    const teamSel = $('teamSel');
-    if (!teamSel.options.length || (teamSel.options.length===1 && teamSel.options[0].value==='')) {
-      $('teamFilter').style.display = 'none';
+    function renderChart(cfg){
+      if (chart) chart.destroy();
+      chart = new Chart(els.canvas.getContext('2d'), {
+        type: 'line',
+        data: cfg,
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { grid: { color: 'rgba(255,255,255,.05)' }, ticks:{ color:'#cdd3ee'} },
+            y: { grid: { color: 'rgba(255,255,255,.05)' }, ticks:{ color:'#cdd3ee'} }
+          },
+          plugins:{
+            legend:{ labels:{ color:'#e9ecf5' } },
+            tooltip:{ mode:'index', intersect:false }
+          }
+        }
+      });
     }
 
-    // Default dates
-    const ds = RAW.map(r=> new Date(r.Date));
-    $('startDate').value = toISO(new Date(Math.min(...ds)));
-    $('endDate').value = toISO(new Date(Math.max(...ds)));
+    async function loadCSV(url){
+      return new Promise((resolve, reject) => {
+        Papa.parse(url, {
+          download: true,
+          dynamicTyping: false,
+          skipEmptyLines: true,
+          complete: (res) => resolve(res.data),
+          error: (err) => reject(err)
+        });
+      });
+    }
 
-    ['startDate','endDate','sourceSel','branchSel','productSel','teamSel','topN'].forEach(id=> $(id).addEventListener('change', applyFilters));
-    $('exportBtn').addEventListener('click', exportCSV);
+    async function run(){
+      const url = els.csvUrl.value.trim();
+      if(!url) { alert('ใส่ CSV URL ของชีตก่อนครับ'); return; }
+      try{
+        const rows = await loadCSV(url);
+        headers = rows[0];
+        rawData = rows.slice(1);
+        populateSelectors();
 
-    $('status').textContent='Connected'; $('status').style.background='rgba(53,208,171,.25)';
-    applyFilters();
-  }catch(e){
-    console.error(e); $('status').textContent='Error'; $('status').style.background='rgba(255,99,132,.25)'; alert(e.message);
-  }
-})();
+        const xIdx = +els.xSelect.value;
+        const yIdxs = [...els.ySelect.selectedOptions].map(o => +o.value);
+        const cfg = toDatasets(xIdx, yIdxs);
+        renderChart(cfg);
+      }catch(e){
+        console.error(e);
+        alert('โหลด CSV ไม่สำเร็จ กรุณาตรวจสอบสิทธิ์การเข้าถึงหรือ URL');
+      }
+    }
 
-function fillSelect(id, items){ const el=$(id); el.innerHTML=''; items.forEach(x=> el.appendChild(new Option(x,x==='(ทั้งหมด)'?'':x))); }
+    els.loadBtn.addEventListener('click', () => {
+      const xIdx = +els.xSelect.value;
+      const yIdxs = [...els.ySelect.selectedOptions].map(o => +o.value);
+      const cfg = toDatasets(xIdx, yIdxs);
+      renderChart(cfg);
+    });
 
-function getFiltered(){
-  const s = $('startDate').value? new Date($('startDate').value): null;
-  const e = $('endDate').value? new Date($('endDate').value): null;
-  const src = $('sourceSel').value, b=$('branchSel').value, p=$('productSel').value, t=$('teamSel').value;
-  return RAW.filter(r=>{
-    const d=new Date(r.Date);
-    if(s && d<s) return false; if(e && d>e) return false;
-    if(src && r.Source!==src) return false;
-    if(b && r.Branch!==b) return false; if(p && r.Product!==p) return false; if(t && r.Team!==t) return false;
-    return true;
-  });
-}
+    // ถ้าผู้ใช้วาง URL แล้วกด Enter → โหลดทันที
+    els.csvUrl.addEventListener('keydown', (e) => { if(e.key==='Enter') run(); });
 
-function applyFilters(){
-  const rows = getFiltered();
-  const total = rows.reduce((a,c)=> a+(+c.Value||0), 0);
-  $('kpiTotal').textContent = fmt(total);
-  $('kpiCount').textContent = fmt(rows.length);
-  const months = groupSum(rows, r=> r.Date.slice(0,7), r=> +r.Value||0).sort((a,b)=> a[0]>b[0]?1:-1);
-  const mNow  = months.length ? months[months.length-1] : null;
-  const mPrev = months.length>1 ? months[months.length-2] : null;
-  $('kpiMonth').textContent = mNow? `${mNow[0]}: ${fmt(mNow[1])}` : '-';
-  const delta = (mNow?mNow[1]:0) - (mPrev?mPrev[1]:0);
-  $('kpiMoM').textContent = (mPrev && mPrev[1]!==0)? `${delta>0?'+':''}${fmt(delta)} (${((delta/mPrev[1])*100).toFixed(1)}%)` : '—';
-
-  drawTrend(rows);
-  drawBars('branchChart', rows, r=>r.Branch, 'ตามสาขา');
-  drawBars('productChart', rows, r=>r.Product, 'ตามสินค้า/แพ็กเกจ');
-  drawBars('teamChart', rows, r=>r.Team, 'ตามทีม');
-  drawDonut(rows);
-  renderTable(rows);
-}
-
-function drawTrend(rows){
-  const byDay = groupSum(rows, r=> r.Date, r=> +r.Value||0).sort((a,b)=> a[0]>b[0]?1:-1);
-  makeChart('trendChart',{type:'line', data:{ labels:byDay.map(x=>x[0]), datasets:[{ data:byDay.map(x=>x[1]), tension:.25, fill:true }] }, options:{ plugins:{legend:{display:false}, datalabels:{display:false}}, scales:{y:{beginAtZero:true}} }});
-}
-
-function drawBars(id, rows, keyFn, label){
-  let arr = groupSum(rows, keyFn, r=> +r.Value||0).filter(x=>x[0]).sort((a,b)=> b[1]-a[1]);
-  const top = Math.max(1, +$('topN').value||10); if(arr.length>top){ const other = arr.slice(top).reduce((a,c)=>a+c[1],0); arr = arr.slice(0,top).concat([['อื่นๆ',other]]); }
-  makeChart(id,{type:'bar', data:{ labels:arr.map(x=>x[0]), datasets:[{ label, data:arr.map(x=>x[1]) }] }, options:{ indexAxis:'y', plugins:{legend:{display:false}, datalabels:{anchor:'end', align:'right', formatter:v=>fmt(v), color:'#cfe0ff'}}, scales:{x:{beginAtZero:true}}}});
-}
-
-function drawDonut(rows){
-  const arr = groupSum(rows, r=> r.Source, r=> +r.Value||0).sort((a,b)=> b[1]-a[1]);
-  makeChart('donutChart',{type:'doughnut', data:{ labels:arr.map(x=>x[0]), datasets:[{ data:arr.map(x=>x[1]) }] }, options:{ plugins:{ legend:{position:'bottom'}, datalabels:{ formatter:(v,ctx)=>{ const sum=ctx.chart._metasets[0].total||arr.reduce((a,c)=>a+c[1],0); const pct = sum? (v*100/sum):0; return pct>=6? pct.toFixed(1)+'%':''; } } } });
-}
-
-function renderTable(rows){
-  const thead=$('dataTable').querySelector('thead'); const tbody=$('dataTable').querySelector('tbody');
-  const headers=['Date','Source','Order','Branch','Product','Team','Value'];
-  thead.innerHTML='<tr>'+headers.map(h=>`<th>${h}</th>`).join('')+'</tr>';
-  tbody.innerHTML=rows.map(r=>`<tr><td>${r.Date}</td><td>${r.Source}</td><td>${r.Order||''}</td><td>${r.Branch||''}</td><td>${r.Product||''}</td><td>${r.Team||''}</td><td class="right">${fmt(r.Value)}</td></tr>`).join('');
-}
-
-function makeChart(id, cfg){ const ctx=$(id).getContext('2d'); if(charts[id]) charts[id].destroy(); charts[id]=new Chart(ctx,cfg); return charts[id]; }
-
-function exportCSV(){
-  const rows = getFiltered(); if(!rows.length) return alert('ไม่มีข้อมูลตามตัวกรอง');
-  const header = Object.keys(rows[0]);
-  const csv = [header.join(',')].concat(rows.map(r=> header.map(h=> JSON.stringify(r[h]??'')).join(','))).join('\n');
-  const blob = new Blob([csv], {type:'text/csv'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='filtered.csv'; a.click();
-}
-</script>
+    // ลองอ่านค่า URL จาก hash (?csv=...) เพื่อแชร์ลิงก์ตั้งค่าไว้ล่วงหน้าได้
+    const params = new URLSearchParams(location.search);
+    if (params.get('csv')) {
+      els.csvUrl.value = decodeURIComponent(params.get('csv'));
+      run();
+    }
+  </script>
 </body>
 </html>
