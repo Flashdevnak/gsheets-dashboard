@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Elegant Google Sheets Dashboard — Auto Connect</title>
+  <title>Elegant Google Sheets Dashboard — Auto Connect (Fixed)</title>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
@@ -80,7 +80,7 @@
     </div>
 
     <div class="card" style="font-size:12px;color:#cbd3ea">
-      เชื่อมต่อแบบอัตโนมัติด้วย <b>Sheet ID</b> และชื่อแผ่นงาน (Lost, damaged) 
+      เชื่อมต่อแบบอัตโนมัติด้วย <b>Sheet ID</b> และชื่อแผ่นงาน (Lost, damaged) — ถ้าไม่เห็นข้อมูล โปรดตรวจ: ไฟล์ → แชร์ → เผยแพร่ไปยังเว็บ
     </div>
 
   </div>
@@ -90,31 +90,53 @@ Chart.register(ChartDataLabels);
 const $ = (id)=>document.getElementById(id);
 const fmt = (n)=> (isNaN(n)?'-': Number(n).toLocaleString());
 const toISO = (d)=> d.toISOString().slice(0,10);
-function parseDateFlexible(s){ if(!s) return null; if(/^\d{4}-\d{2}-\d{2}/.test(s)) return new Date(s); const m=String(s).match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/); if(m){const d=+m[1],mo=+m[2]-1,y=(m[3].length===2?+('20'+m[3]):+m[3]); return new Date(y,mo,d);} const d2=new Date(s); return isNaN(d2)?null:d2; }
+function parseDateFlexible(s){
+  if(!s) return null;
+  if(/^\d{4}-\d{2}-\d{2}/.test(s)) return new Date(s);
+  // dd/mm/yyyy
+  const m=String(s).match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if(m){const d=+m[1],mo=+m[2]-1,y=(m[3].length===2?+('20'+m[3]):+m[3]); return new Date(y,mo,d);} 
+  // dd-mm-yyyy
+  const m2=String(s).match(/^(\d{1,2})-(\d{1,2})-(\d{2,4})/);
+  if(m2){const d=+m2[1],mo=+m2[2]-1,y=(m2[3].length===2?+('20'+m2[3]):+m2[3]); return new Date(y,mo,d);} 
+  const d2=new Date(s); return isNaN(d2)?null:d2;
+}
 function unique(a){ return Array.from(new Set(a.filter(Boolean))).sort(); }
 function groupSum(rows, keyFn, valFn){ const mp=new Map(); for(const r of rows){ const k=keyFn(r); if(k==null) continue; mp.set(k,(mp.get(k)||0)+(valFn(r)||0)); } return Array.from(mp.entries()); }
 
 // ====== AUTO CONFIG (YOUR SHEET) ======
 const SHEET_ID = '18FhtYVbg5ZwFJXn0oJhb69Lxm8HiAdCs_rboRsJnoP4';
-const SHEETS = ['Lost','damaged'];
+const SHEETS = ['Lost','Damaged']; // ต้องตรงตัวอักษร
 
-// Heuristic column detection (TH/EN)
+// ล็อกชื่อหัวคอลัมน์ของคุณก่อน แล้วค่อย fallback
 function detectCols(headers){
   const h = headers.map(x=> String(x||'').trim());
+  const locked = {
+    date:   h.includes('วันที่เกิดเหตุ') ? 'วันที่เกิดเหตุ' : null,
+    value:  h.includes('จำนวน') ? 'จำนวน' : null,
+    branch: h.includes('การรับผิดชอบResponsible') ? 'การรับผิดชอบResponsible' : null,
+    product:h.includes('Package') ? 'Package' : null,
+    team:   h.includes('ทีมตรวจสอบ') ? 'ทีมตรวจสอบ' : null,
+    order:  h.includes('เลขExpress Order') ? 'เลขExpress Order' : null,
+  };
   const find = (cands)=> h.find(x=> cands.some(c=> x.toLowerCase().includes(c))) || null;
   return {
-    date:   find(['วันที่','date','เกิดเหตุ','ตรวจสอบ']) || h[0] || null,
-    value:  find(['จำนวน','amount','value','qty']) || null,
-    branch: find(['รับผิดชอบ','branch','responsible']) || null,
-    product:find(['package','สินค้า','product']) || null,
-    team:   find(['ทีม','team']) || null,
-    order:  find(['เลข','order','tracking','express']) || null,
+    date:   locked.date   || find(['วันที่','date','เกิดเหตุ','ตรวจสอบ']) || h[0] || null,
+    value:  locked.value  || find(['จำนวน','amount','value','qty']) || null,
+    branch: locked.branch || find(['รับผิดชอบ','branch','responsible']) || null,
+    product:locked.product|| find(['package','สินค้า','product']) || null,
+    team:   locked.team   || find(['ทีม','team']) || null,
+    order:  locked.order  || find(['เลข','order','tracking','express']) || null,
   };
 }
 
 async function fetchSheetCSV(sheetName){
-  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
-  const res = await fetch(url); const text = await res.text();
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}&cachebust=${Date.now()}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`โหลดชีต "${sheetName}" ไม่สำเร็จ (HTTP ${res.status}).\nโปรดตรวจว่าได้\n• เผยแพร่ไปยังเว็บแล้ว\n• สะกดชื่อชีตตรงกับ: ${SHEETS.join(', ')}`);
+  }
+  const text = await res.text();
   const parsed = Papa.parse(text, {header:true});
   return parsed.data;
 }
@@ -138,7 +160,6 @@ const TABS=[
 (async function bootstrap(){
   try{
     $('status').textContent='Connecting…';
-    // Fetch both sheets and tag source
     const allRows = [];
     for(const name of SHEETS){
       const rows = await fetchSheetCSV(name);
@@ -165,7 +186,9 @@ const TABS=[
     }
 
     RAW = allRows;
-    if(!RAW.length) throw new Error('ไม่พบข้อมูลในชีต Lost / damaged (ตรวจการ Publish เป็น CSV)');
+    if(!RAW.length) {
+      throw new Error('ไม่พบข้อมูลในชีต Lost / damaged\n• ตรวจว่าเผยแพร่ไปยังเว็บแล้ว (ไฟล์ → แชร์ → เผยแพร่ไปยังเว็บ)\n• ตรวจสะกดชื่อแผ่นงาน Lost, damaged ให้ตรงตัวพิมพ์\n• ตรวจว่าคอลัมน์วันที่/ข้อมูลมีจริง');
+    }
 
     // Build filters
     fillSelect('sourceSel', ['(ทั้งหมด)'].concat(unique(RAW.map(r=>r.Source))));
@@ -204,17 +227,16 @@ function getFiltered(){
 
 function applyFilters(){
   const rows = getFiltered();
-  // KPIs
   const total = rows.reduce((a,c)=> a+(+c.Value||0), 0);
   $('kpiTotal').textContent = fmt(total);
   $('kpiCount').textContent = fmt(rows.length);
   const months = groupSum(rows, r=> r.Date.slice(0,7), r=> +r.Value||0).sort((a,b)=> a[0]>b[0]?1:-1);
-  const mNow = months.at(-1); const mPrev = months.at(-2);
+  const mNow  = months.length ? months[months.length-1] : null;
+  const mPrev = months.length>1 ? months[months.length-2] : null;
   $('kpiMonth').textContent = mNow? `${mNow[0]}: ${fmt(mNow[1])}` : '-';
   const delta = (mNow?mNow[1]:0) - (mPrev?mPrev[1]:0);
   $('kpiMoM').textContent = (mPrev && mPrev[1]!==0)? `${delta>0?'+':''}${fmt(delta)} (${((delta/mPrev[1])*100).toFixed(1)}%)` : '—';
 
-  // Charts
   drawTrend(rows);
   drawBars('branchChart', rows, r=>r.Branch, 'ตามสาขา');
   drawBars('productChart', rows, r=>r.Product, 'ตามสินค้า/แพ็กเกจ');
