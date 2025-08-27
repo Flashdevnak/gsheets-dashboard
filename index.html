@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Elegant Google Sheets Dashboard — Auto Connect (Fixed)</title>
+  <title>Elegant Google Sheets Dashboard — Auto Connect (Matched to Your Sheet)</title>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
@@ -54,7 +54,7 @@
         <div class="col-3"><label>ประเภทข้อมูล (แหล่ง)</label><select id="sourceSel"></select></div>
         <div class="col-3"><label>สาขา</label><select id="branchSel"></select></div>
         <div class="col-3"><label>สินค้า/แพ็กเกจ</label><select id="productSel"></select></div>
-        <div class="col-3"><label>ทีม</label><select id="teamSel"></select></div>
+        <div class="col-3" id="teamFilter"><label>ทีม</label><select id="teamSel"></select></div>
         <div class="col-3"><label>Top N (อันดับ)</label><input id="topN" type="number" min="1" value="10"></div>
         <div class="col-3"><label>&nbsp;</label><button id="exportBtn" class="ghost">Export กรองแล้ว (CSV)</button></div>
       </div>
@@ -80,7 +80,7 @@
     </div>
 
     <div class="card" style="font-size:12px;color:#cbd3ea">
-      เชื่อมต่อแบบอัตโนมัติด้วย <b>Sheet ID</b> และชื่อแผ่นงาน (Lost, damaged) — ถ้าไม่เห็นข้อมูล โปรดตรวจ: ไฟล์ → แชร์ → เผยแพร่ไปยังเว็บ
+      เชื่อมต่อด้วย <b>Sheet ID</b> และชื่อแผ่นงานที่ตรงกับไฟล์จริง: <b>Lost</b>, <b>Damaged</b> — ถ้าไม่เห็นข้อมูล โปรดตรวจ: ไฟล์ → แชร์ → เผยแพร่ไปยังเว็บ
     </div>
 
   </div>
@@ -93,11 +93,9 @@ const toISO = (d)=> d.toISOString().slice(0,10);
 function parseDateFlexible(s){
   if(!s) return null;
   if(/^\d{4}-\d{2}-\d{2}/.test(s)) return new Date(s);
-  // dd/mm/yyyy
-  const m=String(s).match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  const m=String(s).match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/); // dd/mm/yyyy
   if(m){const d=+m[1],mo=+m[2]-1,y=(m[3].length===2?+('20'+m[3]):+m[3]); return new Date(y,mo,d);} 
-  // dd-mm-yyyy
-  const m2=String(s).match(/^(\d{1,2})-(\d{1,2})-(\d{2,4})/);
+  const m2=String(s).match(/^(\d{1,2})-(\d{1,2})-(\d{2,4})/); // dd-mm-yyyy
   if(m2){const d=+m2[1],mo=+m2[2]-1,y=(m2[3].length===2?+('20'+m2[3]):+m2[3]); return new Date(y,mo,d);} 
   const d2=new Date(s); return isNaN(d2)?null:d2;
 }
@@ -106,27 +104,31 @@ function groupSum(rows, keyFn, valFn){ const mp=new Map(); for(const r of rows){
 
 // ====== AUTO CONFIG (YOUR SHEET) ======
 const SHEET_ID = '18FhtYVbg5ZwFJXn0oJhb69Lxm8HiAdCs_rboRsJnoP4';
-const SHEETS = ['Lost','Damaged']; // ต้องตรงตัวอักษร
+const SHEETS = ['Lost','Damaged']; // ให้ตรงแท็บจริง
 
-// ล็อกชื่อหัวคอลัมน์ของคุณก่อน แล้วค่อย fallback
+// ล็อกหัวคอลัมน์ให้ตรงชีตจริง แล้วค่อย fallback
 function detectCols(headers){
   const h = headers.map(x=> String(x||'').trim());
+  const has = (name)=> h.includes(name);
   const locked = {
-    date:   h.includes('วันที่เกิดเหตุ') ? 'วันที่เกิดเหตุ' : null,
-    value:  h.includes('จำนวน') ? 'จำนวน' : null,
-    branch: h.includes('การรับผิดชอบResponsible') ? 'การรับผิดชอบResponsible' : null,
-    product:h.includes('Package') ? 'Package' : null,
-    team:   h.includes('ทีมตรวจสอบ') ? 'ทีมตรวจสอบ' : null,
-    order:  h.includes('เลขExpress Order') ? 'เลขExpress Order' : null,
+    date:   has('วันที่ร้องเรียน') ? 'วันที่ร้องเรียน'
+          : (has('วัน/เวลาที่โดนตัดสิน') ? 'วัน/เวลาที่โดนตัดสิน' : null),
+    value:  has('ค่าน้ำหนัก') ? 'ค่าน้ำหนัก' : (has('Responsible_Weight') ? 'Responsible_Weight' : null),
+    branch: has('สาขารับผิดชอบ') ? 'สาขารับผิดชอบ'
+          : (has('Responsible network') ? 'Responsible network' : null),
+    product:has('Package') ? 'Package' : null,
+    team:   null, // ไม่มีในไฟล์จริง
+    order:  has('เลขพัสดุ') ? 'เลขพัสดุ'
+          : (has('Express Order №') ? 'Express Order №' : (has('Express Order No') ? 'Express Order No' : null)),
   };
   const find = (cands)=> h.find(x=> cands.some(c=> x.toLowerCase().includes(c))) || null;
   return {
-    date:   locked.date   || find(['วันที่','date','เกิดเหตุ','ตรวจสอบ']) || h[0] || null,
-    value:  locked.value  || find(['จำนวน','amount','value','qty']) || null,
-    branch: locked.branch || find(['รับผิดชอบ','branch','responsible']) || null,
-    product:locked.product|| find(['package','สินค้า','product']) || null,
-    team:   locked.team   || find(['ทีม','team']) || null,
-    order:  locked.order  || find(['เลข','order','tracking','express']) || null,
+    date:   locked.date   || find(['วันที่ร้องเรียน','วัน/เวลาที่โดนตัดสิน','process time','วันที่','date','申诉']),
+    value:  locked.value  || find(['ค่าน้ำหนัก','responsible_weight','weight','จำนวน','amount','value','qty']),
+    branch: locked.branch || find(['สาขารับผิดชอบ','responsible network','รับผิดชอบ','branch','responsible','network']),
+    product:locked.product|| find(['package','สินค้า','product']),
+    team:   locked.team   || null,
+    order:  locked.order  || find(['เลขพัสดุ','express order','order','tracking','เลข']),
   };
 }
 
@@ -134,7 +136,7 @@ async function fetchSheetCSV(sheetName){
   const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}&cachebust=${Date.now()}`;
   const res = await fetch(url);
   if (!res.ok) {
-    throw new Error(`โหลดชีต "${sheetName}" ไม่สำเร็จ (HTTP ${res.status}).\nโปรดตรวจว่าได้\n• เผยแพร่ไปยังเว็บแล้ว\n• สะกดชื่อชีตตรงกับ: ${SHEETS.join(', ')}`);
+    throw new Error(`โหลดชีต "${sheetName}" ไม่สำเร็จ (HTTP ${res.status}).\nตรวจว่าได้เผยแพร่ไปยังเว็บ และชื่อชีตตรงกับ: ${SHEETS.join(', ')}`);
   }
   const text = await res.text();
   const parsed = Papa.parse(text, {header:true});
@@ -187,7 +189,7 @@ const TABS=[
 
     RAW = allRows;
     if(!RAW.length) {
-      throw new Error('ไม่พบข้อมูลในชีต Lost / damaged\n• ตรวจว่าเผยแพร่ไปยังเว็บแล้ว (ไฟล์ → แชร์ → เผยแพร่ไปยังเว็บ)\n• ตรวจสะกดชื่อแผ่นงาน Lost, damaged ให้ตรงตัวพิมพ์\n• ตรวจว่าคอลัมน์วันที่/ข้อมูลมีจริง');
+      throw new Error('ไม่พบข้อมูลในชีต Lost / Damaged\n• ตรวจว่าเผยแพร่ไปยังเว็บแล้ว (ไฟล์ → แชร์ → เผยแพร่ไปยังเว็บ)\n• ตรวจสะกดชื่อแผ่นงาน Lost, Damaged ให้ตรงตัวพิมพ์\n• ตรวจว่ามีคอลัมน์วันที่/ข้อมูลจริง');
     }
 
     // Build filters
@@ -195,6 +197,13 @@ const TABS=[
     fillSelect('branchSel', ['(ทั้งหมด)'].concat(unique(RAW.map(r=>r.Branch))));
     fillSelect('productSel', ['(ทั้งหมด)'].concat(unique(RAW.map(r=>r.Product))));
     fillSelect('teamSel', ['(ทั้งหมด)'].concat(unique(RAW.map(r=>r.Team))));
+
+    // Hide team filter if empty (no team column)
+    const teamSel = $('teamSel');
+    if (!teamSel.options.length || (teamSel.options.length===1 && teamSel.options[0].value==='')) {
+      $('teamFilter').style.display = 'none';
+    }
+
     // Default dates
     const ds = RAW.map(r=> new Date(r.Date));
     $('startDate').value = toISO(new Date(Math.min(...ds)));
